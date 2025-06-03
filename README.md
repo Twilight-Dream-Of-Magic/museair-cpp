@@ -13,14 +13,14 @@ MuseAir isn't just any hashing algorithm; it’s optimized for high-speed, non-c
 ### Key Features
 - **High-Performance Hashing:** MuseAir holds its own against other speedy hashes like WyHash, and our C++ version retains that rapidity.
 - **Versatile Output:** Whether you need 64-bit or 128-bit hash outputs, MuseAir has you covered, with minimal performance overhead.
-- **Platform-Specific Tweaks:** We’ve made sure to include optimizations for different platforms, leveraging SIMD instructions where possible. The C++17 template parameters also let you fine-tune the hashing process to your liking.
+- **Platform-Specific Tweaks:** We’ve made sure to include optimizations for different platforms, leveraging SIMD instructions where possible. The C++20 template parameters also let you fine-tune the hashing process to your liking.
 
 ### What’s in This Repository?
 
 This repository doesn’t just bring you the code—it brings the possibility of using MuseAir in your C++ projects. We’ve ensured that this implementation is as seamless as possible, aiming for a header-only design with a few critical paths handled by platform-specific assembly. 
 
 **Minimum Requirements:**
-- **C++ Standard:** You’ll need at least C++17.
+- **C++ Standard:** You’ll need at least C++20.
 - **Build System:** We use CMake (version 3.10 or later) to streamline the build process.
 
 ### How to Build and Use MuseAir
@@ -55,6 +55,212 @@ This repository doesn’t just bring you the code—it brings the possibility of
 
 6. **Run the Executable:**  
    Once built, run `test_muse_air` to see the hashing in action.
+
+#### Windows MSYS compilation SMHasher3 effect
+
+```
+Twilight-Dream@TWILIGHT-DREAM_HOME_COMPUTER MSYS ~
+# cd '/e/[About Programming]/[CodeProjects]/C++/smhasher3/'
+
+Twilight-Dream@TWILIGHT-DREAM_HOME_COMPUTER MSYS /e/[About Programming]/[CodeProjects]/C++/smhasher3
+# cmake -S ./ -B ./build
+-- The C compiler identification is GNU 11.3.0
+-- The CXX compiler identification is GNU 11.3.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc.exe - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++.exe - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- CMAKE_SYSTEM_PROCESSOR: x86_64
+-- GCC detected
+-- Probing fixed-width integer variants
+--   signed and unsigned 8,16,32,64-bit integers found
+--   signed and unsigned 128-bit integers found
+--   appropriate type for seed_t found
+-- Setting target as little-endian
+-- Probing compiler builtin function variants
+--   likely() / unlikely() found
+--   expectp() found
+--   unpredictable() found
+--   unreachable() found
+--   assume() found
+--   prefetch() found
+--   forcing function inlining found
+--   preventing function inlining found
+--   C++ restrict keyword replacement found
+--   type aliasing attribute found
+--   32-bit integer rotation not found, using fallback
+--   64-bit integer rotation not found, using fallback
+--   Integer byteswapping found
+--   32-bit integer popcount found
+--   64-bit integer popcount found
+--   32-bit integer count leading zero bits found
+--   64-bit integer count leading zero bits found
+--   Generic vector types found
+--   Integer shuffling found
+-- x86 universal intrinsic header available
+-- Probing instruction-set availability
+--   x86_64 SSE 2 intrinsics available
+--   x86_64 16- and 32-bit loadu intrinsics available
+--   x86_64 64-bit loadu intrinsics available
+--   x86_64 SSSE3 intrinsics available
+--   x86_64 SSE 4.1 intrinsics available
+--   x86_64 CRC-32C intrinsics available
+--   x86_64 CLMUL intrinsics available
+--   x86_64 AES intrinsics available
+--   x86_64 SHA-1 intrinsics available
+--   x86_64 SHA-2 intrinsics available
+--   x86_64 AVX intrinsics available
+--   x86_64 AVX2 intrinsics available
+--   x86_64 __asm__() available
+-- Looking for pthread.h
+-- Looking for pthread.h - found
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+-- Probing high-resolution timing functions
+--   monotonic clock found
+--   hardware performance counter found
+-- Found Git: /usr/bin/git.exe (found version "2.41.0")
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /e/[About Programming]/[CodeProjects]/C++/smhasher3/build
+
+Twilight-Dream@TWILIGHT-DREAM_HOME_COMPUTER MSYS /e/[About Programming]/[CodeProjects]/C++/smhasher3
+# cd build/
+
+Twilight-Dream@TWILIGHT-DREAM_HOME_COMPUTER MSYS /e/[About Programming]/[CodeProjects]/C++/smhasher3/build
+# make
+[  1%] Generating Hashrefs.cpp
+Scanning dependencies of target SMHasher3Hashlib
+[  2%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/Hashrefs.cpp.o
+[  3%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/lib/Hashlib.cpp.o
+[  4%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/lib/Hashinfo.cpp.o
+[  4%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/lib/AEStables.cpp.o
+[  5%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/lib/AEStest.cpp.o
+[  6%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/lib/Mathmult.cpp.o
+[  7%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/donothing.cpp.o
+[  8%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/badhash.cpp.o
+[  9%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/aesrng.cpp.o
+[ 10%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/farmhash.cpp.o
+[ 10%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/mum_mir.cpp.o
+[ 11%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/halftimehash.cpp.o
+[ 12%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/blake3.cpp.o
+[ 13%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/xxhash.cpp.o
+[ 14%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/blake2.cpp.o
+[ 15%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/umash.cpp.o
+[ 15%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/cityhash.cpp.o
+[ 16%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/rmd.cpp.o
+[ 17%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/t1ha.cpp.o
+[ 18%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/abseil.cpp.o
+[ 19%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/metrohash.cpp.o
+[ 20%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/rust-ahash.cpp.o
+[ 21%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/highwayhash.cpp.o
+[ 21%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/clhash.cpp.o
+[ 22%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/discohash.cpp.o
+[ 23%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/chaskey.cpp.o
+[ 24%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/siphash.cpp.o
+[ 25%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/nmhash.cpp.o
+[ 26%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/ascon.cpp.o
+[ 26%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/prvhash.cpp.o
+[ 27%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/vmac.cpp.o
+[ 28%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/meowhash.cpp.o
+[ 29%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/spookyhash.cpp.o
+[ 30%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/sha2.cpp.o
+[ 31%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/rainstorm.cpp.o
+[ 32%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/sha1.cpp.o
+[ 32%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/farsh.cpp.o
+[ 33%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/hasshe2.cpp.o
+[ 34%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/perlhashes.cpp.o
+[ 35%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/beamsplitter.cpp.o
+[ 36%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/khashv.cpp.o
+[ 37%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/polymur.cpp.o
+[ 37%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/jodyhash.cpp.o
+[ 38%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/poly_mersenne.cpp.o
+[ 39%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/falkhash.cpp.o
+[ 40%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/fnv.cpp.o
+[ 41%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/rainbow.cpp.o
+[ 42%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/wyhash.cpp.o
+[ 43%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/aquahash.cpp.o
+[ 43%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/aesnihash-peterrk.cpp.o
+[ 44%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/md5.cpp.o
+[ 45%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/murmurhash3.cpp.o
+[ 46%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/museair.cpp.o
+[ 47%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/mx3.cpp.o
+[ 48%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/crc.cpp.o
+[ 50%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/rapidhash.cpp.o
+[ 50%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/pearson.cpp.o
+[ 51%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/multiply_shift.cpp.o
+[ 52%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/komihash.cpp.o
+[ 53%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/aesnihash-majek.cpp.o
+[ 54%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/tabulation.cpp.o
+[ 55%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/khash.cpp.o
+[ 55%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/murmurhash2.cpp.o
+[ 56%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/fletcher.cpp.o
+[ 57%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/floppsyhash.cpp.o
+[ 58%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/seahash.cpp.o
+[ 59%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/crap.cpp.o
+[ 60%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/blockpearson.cpp.o
+[ 61%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/sha3.cpp.o
+[ 61%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/lookup3.cpp.o
+[ 62%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/murmurhash1.cpp.o
+[ 63%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/rust-fxhash.cpp.o
+[ 64%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/falcon_oaat.cpp.o
+[ 65%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/fasthash.cpp.o
+[ 66%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/pengyhash.cpp.o
+[ 66%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/superfasthash.cpp.o
+[ 67%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/o1hash.cpp.o
+[ 68%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/murmur_oaat.cpp.o
+[ 69%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/x17.cpp.o
+[ 70%] Linking CXX static library libSMHasher3Hashlib.a
+[ 70%] Built target SMHasher3Hashlib
+[ 71%] Building CXX object CMakeFiles/SMHasher3Tests.dir/util/Platform.cpp.o
+[ 72%] Building CXX object CMakeFiles/SMHasher3Tests.dir/util/Analyze.cpp.o
+[ 72%] Building CXX object CMakeFiles/SMHasher3Tests.dir/util/Blob.cpp.o
+[ 73%] Building CXX object CMakeFiles/SMHasher3Tests.dir/util/Blobsort.cpp.o
+[ 74%] Building CXX object CMakeFiles/SMHasher3Tests.dir/util/Reporting.cpp.o
+[ 75%] Building CXX object CMakeFiles/SMHasher3Tests.dir/util/Random.cpp.o
+[ 76%] Building CXX object CMakeFiles/SMHasher3Tests.dir/util/Stats.cpp.o
+[ 77%] Building CXX object CMakeFiles/SMHasher3Tests.dir/util/VCode.cpp.o
+[ 77%] Building CXX object CMakeFiles/SMHasher3Tests.dir/util/Wordlist.cpp.o
+[ 78%] Building CXX object CMakeFiles/SMHasher3Tests.dir/util/TestGlobals.cpp.o
+[ 79%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/SanityTest.cpp.o
+[ 80%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/AvalancheTest.cpp.o
+[ 81%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/BitflipTest.cpp.o
+[ 82%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/BitIndependenceTest.cpp.o
+[ 83%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/HashMapTest.cpp.o
+[ 83%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/SparseKeysetTest.cpp.o
+[ 84%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/ZeroesKeysetTest.cpp.o
+[ 85%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/CyclicKeysetTest.cpp.o
+[ 86%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/TwoBytesKeysetTest.cpp.o
+[ 87%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/TextKeysetTest.cpp.o
+[ 88%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/PermutationKeysetTest.cpp.o
+[ 88%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/SeedTest.cpp.o
+[ 89%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/SeedZeroesTest.cpp.o
+[ 90%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/SeedSparseTest.cpp.o
+[ 91%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/SeedBitflipTest.cpp.o
+[ 92%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/SeedBlockLenTest.cpp.o
+[ 93%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/SeedBlockOffsetTest.cpp.o
+[ 94%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/SeedAvalancheTest.cpp.o
+[ 94%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/SeedBitIndependenceTest.cpp.o
+[ 95%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/BadSeedsTest.cpp.o
+[ 96%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/PerlinNoiseTest.cpp.o
+[ 97%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/SpeedTest.cpp.o
+[ 98%] Linking CXX static library libSMHasher3Tests.a
+[ 98%] Built target SMHasher3Tests
+[ 98%] Built target SMHasher3Version
+[ 98%] Building CXX object CMakeFiles/SMHasher3.dir/main.cpp.o
+[100%] Linking CXX executable SMHasher3.exe
+[100%] Built target SMHasher3
+
+Twilight-Dream@TWILIGHT-DREAM_HOME_COMPUTER MSYS /e/[About Programming]/[CodeProjects]/C++/smhasher3/build
+#
+```
 
 ### Example Usage of MuseAir
 
@@ -144,47 +350,56 @@ This project is under the MIT License. For more details, see the [LICENSE](LICEN
 ### Acknowledgments
 
 Special thanks to [eternal-io](https://github.com/eternal-io) for creating the MuseAir algorithm. This C++ version is a third-party implementation by a friend of the original author (that's me), aimed at making MuseAir accessible to the C++ community. We welcome contributions, issue reports, and forks for your own projects.
+
 ### Performance Comparison: MuseAir vs. WyHash vs. RapidHash
 
-In this section, we pit the MuseAir hashing algorithm against two well-known competitors—WyHash and RapidHash. We ran a series of speed tests using the SMHasher3 benchmarking tool to evaluate the performance of these algorithms across various scenarios, focusing on small and bulk key speeds.
-
-![Small Key Speed Test](images/Small%20Key%20Speed%20Test%20-%20Cycles%20per%20Hash%20vs%20Key%20Size%20%5B1%2C%2031%5D-byte%20keys.png)
+SMHasher3 Tester Toolkit Results on a 12th Gen Intel(R) Core(TM) i7-12700K CPU
 
 #### Small Key Speed Test (1 to 31-byte keys)
 
-| Algorithm            | Average Cycles/Hash |
-|----------------------|---------------------|
-| **MuseAir**          | 29.92               |
-| **WyHash (non-strict)**  | 21.94               |
-| **WyHash (strict)**      | 25.13               |
-| **RapidHash**        | 21.63               |
-| **RapidHash (protected)** | 25.12               |
-
-- **Winner**: **WyHash (non-strict)** and **RapidHash** lead in this test, showing the lowest average cycles per hash for small keys, with MuseAir trailing behind.
-
-![Bulk Speed Test](images/Bulk%20Speed%20Test%20-%20GiBsec%20vs%20Alignment%20for%20wyhash%2C%20rapidhash%2C%20MuseAir%2C%20and%20MuseAir-BFast.png)
+![Small Key Speed Test](images/Small%20Key%20Speed%20Test%20-%20Cycles%20per%20Hash%20vs%20Key%20Size%20%5B1%2C%2031%5D-byte%20keys.png)
 
 #### Bulk Key Speed Test (262144-byte keys)
 
-| Algorithm            | Average Bytes/Cycle | Speed (GiB/sec) @ 3.5 GHz |
-|----------------------|---------------------|---------------------------|
-| **MuseAir**          | 10.89               | 35.49                      |
-| **WyHash (non-strict)**  | 10.78               | 35.15                      |
-| **WyHash (strict)**      | 7.41                | 24.14                      |
-| **RapidHash**        | 10.85               | 35.36                      |
-| **RapidHash (protected)** | 7.41                | 24.14                      |
+![Bulk Speed Test](images/Bulk%20Speed%20Test%20-%20GiBsec%20vs%20Alignment%20for%20wyhash%2C%20rapidhash%2C%20MuseAir%2C%20and%20MuseAir-BFast.png)
 
-- **Winner**: **MuseAir** edges out the competition slightly in bulk key speed, achieving the highest bytes per cycle and GiB/sec. RapidHash is a close second, while WyHash (strict) lags significantly behind.
+#### C++ SMHasher3
 
-### Analysis
+**Test wyhash (non‐strict version)**
+```bash
+./SMHasher3 --test=Speed wyhash
+```
 
-From these results, we can conclude that while MuseAir might not excel in small key hashing compared to WyHash and RapidHash, it performs exceptionally well in bulk key scenarios, which is crucial for applications that process large amounts of data. 
+**Test wyhash.strict (strict version)**
+```bash
+./SMHasher3 --test=Speed wyhash.strict
+```
 
-WyHash in its non-strict form is a solid performer across the board, particularly in scenarios with smaller keys. Meanwhile, RapidHash shows consistent performance, making it a versatile choice depending on the use case.
+**Test rapidhash (standard version)**
+```bash
+./SMHasher3 --test=Speed rapidhash
+```
 
-MuseAir's strength lies in its balance of performance for larger datasets, making it an excellent choice for systems that prioritize throughput over minimal cycle counts on small inputs.
+**Test rapidhash.protected (protected version)**
+```bash
+./SMHasher3 --test=Speed rapidhash.protected
+```
 
-These results offer a clear view of the strengths and weaknesses of each algorithm, allowing developers to make informed decisions based on their specific needs.
+**Test MuseAir (standard version)**
+```bash
+./SMHasher3 --test=Speed MuseAir
+```
+
+**Test MuseAir-BFast (blind‐cover fast version)**
+```bash
+./SMHasher3 --test=Speed MuseAir-BFast
+```
+
+**Include extra security tests for the parallel‐accelerated MuseAir-BFast (using 16 CPU cores)**
+```bash
+./SMHasher3 --extra --ncpu=16 MuseAir-BFast
+```
+
 
 ----
 
@@ -205,14 +420,14 @@ MuseAir不仅仅是一个普通的哈希算法；它专为高速、非密码学�
 ### 主要特性
 - **高性能哈希**：MuseAir与其他快速哈希算法（如WyHash）不相上下，我们的C++版本保留了这种速度优势。
 - **多功能输出**：无论你需要64位还是128位哈希输出，MuseAir都能胜任，并且性能损失极小。
-- **平台特定优化**：我们确保在不同平台上进行优化，尽可能利用SIMD指令。C++17的模板参数还允许你根据需要微调哈希过程。
+- **平台特定优化**：我们确保在不同平台上进行优化，尽可能利用SIMD指令。C++20的模板参数还允许你根据需要微调哈希过程。
 
 ### 仓库内容
 
 这个仓库不仅仅为你提供代码，还为你提供了在C++项目中使用MuseAir的可能性。我们确保该实现尽可能无缝，目标是头文件唯一的设计，少量关键路径使用平台特定的汇编代码。
 
 **最低要求：**
-- **C++标准**：至少需要C++17。
+- **C++标准**：至少需要C++20。
 - **构建系统**：我们使用CMake（版本3.10或更高）来简化构建过程。
 
 ### 如何构建和使用MuseAir
@@ -247,6 +462,213 @@ MuseAir不仅仅是一个普通的哈希算法；它专为高速、非密码学�
 
 6. **运行可执行文件**：  
    构建完成后，运行 `test_muse_air` 查看哈希算法的表现。
+
+
+#### Windows MSYS 编译SMHasher3效果
+
+```
+Twilight-Dream@TWILIGHT-DREAM_HOME_COMPUTER MSYS ~
+# cd '/e/[About Programming]/[CodeProjects]/C++/smhasher3/'
+
+Twilight-Dream@TWILIGHT-DREAM_HOME_COMPUTER MSYS /e/[About Programming]/[CodeProjects]/C++/smhasher3
+# cmake -S ./ -B ./build
+-- The C compiler identification is GNU 11.3.0
+-- The CXX compiler identification is GNU 11.3.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc.exe - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++.exe - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- CMAKE_SYSTEM_PROCESSOR: x86_64
+-- GCC detected
+-- Probing fixed-width integer variants
+--   signed and unsigned 8,16,32,64-bit integers found
+--   signed and unsigned 128-bit integers found
+--   appropriate type for seed_t found
+-- Setting target as little-endian
+-- Probing compiler builtin function variants
+--   likely() / unlikely() found
+--   expectp() found
+--   unpredictable() found
+--   unreachable() found
+--   assume() found
+--   prefetch() found
+--   forcing function inlining found
+--   preventing function inlining found
+--   C++ restrict keyword replacement found
+--   type aliasing attribute found
+--   32-bit integer rotation not found, using fallback
+--   64-bit integer rotation not found, using fallback
+--   Integer byteswapping found
+--   32-bit integer popcount found
+--   64-bit integer popcount found
+--   32-bit integer count leading zero bits found
+--   64-bit integer count leading zero bits found
+--   Generic vector types found
+--   Integer shuffling found
+-- x86 universal intrinsic header available
+-- Probing instruction-set availability
+--   x86_64 SSE 2 intrinsics available
+--   x86_64 16- and 32-bit loadu intrinsics available
+--   x86_64 64-bit loadu intrinsics available
+--   x86_64 SSSE3 intrinsics available
+--   x86_64 SSE 4.1 intrinsics available
+--   x86_64 CRC-32C intrinsics available
+--   x86_64 CLMUL intrinsics available
+--   x86_64 AES intrinsics available
+--   x86_64 SHA-1 intrinsics available
+--   x86_64 SHA-2 intrinsics available
+--   x86_64 AVX intrinsics available
+--   x86_64 AVX2 intrinsics available
+--   x86_64 __asm__() available
+-- Looking for pthread.h
+-- Looking for pthread.h - found
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+-- Probing high-resolution timing functions
+--   monotonic clock found
+--   hardware performance counter found
+-- Found Git: /usr/bin/git.exe (found version "2.41.0")
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /e/[About Programming]/[CodeProjects]/C++/smhasher3/build
+
+Twilight-Dream@TWILIGHT-DREAM_HOME_COMPUTER MSYS /e/[About Programming]/[CodeProjects]/C++/smhasher3
+# cd build/
+
+Twilight-Dream@TWILIGHT-DREAM_HOME_COMPUTER MSYS /e/[About Programming]/[CodeProjects]/C++/smhasher3/build
+# make
+[  1%] Generating Hashrefs.cpp
+Scanning dependencies of target SMHasher3Hashlib
+[  2%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/Hashrefs.cpp.o
+[  3%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/lib/Hashlib.cpp.o
+[  4%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/lib/Hashinfo.cpp.o
+[  4%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/lib/AEStables.cpp.o
+[  5%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/lib/AEStest.cpp.o
+[  6%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/lib/Mathmult.cpp.o
+[  7%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/donothing.cpp.o
+[  8%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/badhash.cpp.o
+[  9%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/aesrng.cpp.o
+[ 10%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/farmhash.cpp.o
+[ 10%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/mum_mir.cpp.o
+[ 11%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/halftimehash.cpp.o
+[ 12%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/blake3.cpp.o
+[ 13%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/xxhash.cpp.o
+[ 14%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/blake2.cpp.o
+[ 15%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/umash.cpp.o
+[ 15%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/cityhash.cpp.o
+[ 16%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/rmd.cpp.o
+[ 17%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/t1ha.cpp.o
+[ 18%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/abseil.cpp.o
+[ 19%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/metrohash.cpp.o
+[ 20%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/rust-ahash.cpp.o
+[ 21%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/highwayhash.cpp.o
+[ 21%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/clhash.cpp.o
+[ 22%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/discohash.cpp.o
+[ 23%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/chaskey.cpp.o
+[ 24%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/siphash.cpp.o
+[ 25%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/nmhash.cpp.o
+[ 26%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/ascon.cpp.o
+[ 26%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/prvhash.cpp.o
+[ 27%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/vmac.cpp.o
+[ 28%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/meowhash.cpp.o
+[ 29%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/spookyhash.cpp.o
+[ 30%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/sha2.cpp.o
+[ 31%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/rainstorm.cpp.o
+[ 32%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/sha1.cpp.o
+[ 32%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/farsh.cpp.o
+[ 33%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/hasshe2.cpp.o
+[ 34%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/perlhashes.cpp.o
+[ 35%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/beamsplitter.cpp.o
+[ 36%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/khashv.cpp.o
+[ 37%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/polymur.cpp.o
+[ 37%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/jodyhash.cpp.o
+[ 38%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/poly_mersenne.cpp.o
+[ 39%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/falkhash.cpp.o
+[ 40%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/fnv.cpp.o
+[ 41%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/rainbow.cpp.o
+[ 42%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/wyhash.cpp.o
+[ 43%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/aquahash.cpp.o
+[ 43%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/aesnihash-peterrk.cpp.o
+[ 44%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/md5.cpp.o
+[ 45%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/murmurhash3.cpp.o
+[ 46%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/museair.cpp.o
+[ 47%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/mx3.cpp.o
+[ 48%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/crc.cpp.o
+[ 50%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/rapidhash.cpp.o
+[ 50%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/pearson.cpp.o
+[ 51%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/multiply_shift.cpp.o
+[ 52%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/komihash.cpp.o
+[ 53%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/aesnihash-majek.cpp.o
+[ 54%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/tabulation.cpp.o
+[ 55%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/khash.cpp.o
+[ 55%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/murmurhash2.cpp.o
+[ 56%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/fletcher.cpp.o
+[ 57%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/floppsyhash.cpp.o
+[ 58%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/seahash.cpp.o
+[ 59%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/crap.cpp.o
+[ 60%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/blockpearson.cpp.o
+[ 61%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/sha3.cpp.o
+[ 61%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/lookup3.cpp.o
+[ 62%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/murmurhash1.cpp.o
+[ 63%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/rust-fxhash.cpp.o
+[ 64%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/falcon_oaat.cpp.o
+[ 65%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/fasthash.cpp.o
+[ 66%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/pengyhash.cpp.o
+[ 66%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/superfasthash.cpp.o
+[ 67%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/o1hash.cpp.o
+[ 68%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/murmur_oaat.cpp.o
+[ 69%] Building CXX object CMakeFiles/SMHasher3Hashlib.dir/hashes/x17.cpp.o
+[ 70%] Linking CXX static library libSMHasher3Hashlib.a
+[ 70%] Built target SMHasher3Hashlib
+[ 71%] Building CXX object CMakeFiles/SMHasher3Tests.dir/util/Platform.cpp.o
+[ 72%] Building CXX object CMakeFiles/SMHasher3Tests.dir/util/Analyze.cpp.o
+[ 72%] Building CXX object CMakeFiles/SMHasher3Tests.dir/util/Blob.cpp.o
+[ 73%] Building CXX object CMakeFiles/SMHasher3Tests.dir/util/Blobsort.cpp.o
+[ 74%] Building CXX object CMakeFiles/SMHasher3Tests.dir/util/Reporting.cpp.o
+[ 75%] Building CXX object CMakeFiles/SMHasher3Tests.dir/util/Random.cpp.o
+[ 76%] Building CXX object CMakeFiles/SMHasher3Tests.dir/util/Stats.cpp.o
+[ 77%] Building CXX object CMakeFiles/SMHasher3Tests.dir/util/VCode.cpp.o
+[ 77%] Building CXX object CMakeFiles/SMHasher3Tests.dir/util/Wordlist.cpp.o
+[ 78%] Building CXX object CMakeFiles/SMHasher3Tests.dir/util/TestGlobals.cpp.o
+[ 79%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/SanityTest.cpp.o
+[ 80%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/AvalancheTest.cpp.o
+[ 81%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/BitflipTest.cpp.o
+[ 82%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/BitIndependenceTest.cpp.o
+[ 83%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/HashMapTest.cpp.o
+[ 83%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/SparseKeysetTest.cpp.o
+[ 84%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/ZeroesKeysetTest.cpp.o
+[ 85%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/CyclicKeysetTest.cpp.o
+[ 86%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/TwoBytesKeysetTest.cpp.o
+[ 87%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/TextKeysetTest.cpp.o
+[ 88%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/PermutationKeysetTest.cpp.o
+[ 88%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/SeedTest.cpp.o
+[ 89%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/SeedZeroesTest.cpp.o
+[ 90%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/SeedSparseTest.cpp.o
+[ 91%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/SeedBitflipTest.cpp.o
+[ 92%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/SeedBlockLenTest.cpp.o
+[ 93%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/SeedBlockOffsetTest.cpp.o
+[ 94%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/SeedAvalancheTest.cpp.o
+[ 94%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/SeedBitIndependenceTest.cpp.o
+[ 95%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/BadSeedsTest.cpp.o
+[ 96%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/PerlinNoiseTest.cpp.o
+[ 97%] Building CXX object CMakeFiles/SMHasher3Tests.dir/tests/SpeedTest.cpp.o
+[ 98%] Linking CXX static library libSMHasher3Tests.a
+[ 98%] Built target SMHasher3Tests
+[ 98%] Built target SMHasher3Version
+[ 98%] Building CXX object CMakeFiles/SMHasher3.dir/main.cpp.o
+[100%] Linking CXX executable SMHasher3.exe
+[100%] Built target SMHasher3
+
+Twilight-Dream@TWILIGHT-DREAM_HOME_COMPUTER MSYS /e/[About Programming]/[CodeProjects]/C++/smhasher3/build
+#
+```
 
 ### MuseAir示例代码
 
@@ -337,36 +759,35 @@ MuseAir在C++中的基准测试表明，它的性能与原始的Rust实现相当
 
 在本章节中，我们将MuseAir哈希算法与两个知名的竞争对手——WyHash和RapidHash进行对比。我们使用SMHasher3基准测试工具对这些算法在各种场景下的性能进行了测试，重点关注小规模和大规模密钥的速度表现。
 
+SMHasher3 Tester Toolkit Results on a 12th Gen Intel(R) Core(TM) i7-12700K CPU
+
+#### C++ SMHasher3
+
+**测试 wyhash “非严格”版本**
+./SMHasher3 --test=Speed wyhash
+
+**测试 wyhash.strict 严格版本**
+./SMHasher3 --test=Speed wyhash.strict
+
+**测试 rapidhash “普通”版本**
+./SMHasher3 --test=Speed rapidhash
+
+**测试 rapidhash.protected 受保护版本**
+./SMHasher3 --test=Speed rapidhash.protected
+
+**测试 MuseAir “标准”版本**
+./SMHasher3 --test=Speed MuseAir
+
+**测试 MuseAir “致盲覆盖快速版本”版本**
+./SMHasher3 --test=Speed MuseAir-BFast
+
+**包含额外安全测试 MuseAir-BFast 并行加速版本（使用 16 核 CPU）**
+./SMHasher3 --extra --ncpu=16 MuseAir-BFast
+
 #### 小规模密钥速度测试（1到31字节密钥）
 
-| 算法                    | 平均每次哈希所需周期数 |
-|------------------------|---------------------|
-| **MuseAir**            | 29.92               |
-| **WyHash (非严格版)**     | 21.94               |
-| **WyHash (严格版)**       | 25.13               |
-| **RapidHash**          | 21.63               |
-| **RapidHash (保护版)**   | 25.12               |
-
-- **赢家**：**WyHash (非严格版)** 和 **RapidHash** 在此测试中表现最佳，展示了对小规模密钥最低的平均每次哈希所需周期数，而MuseAir略显逊色。
+![Small Key Speed Test](images/Small%20Key%20Speed%20Test%20-%20Cycles%20per%20Hash%20vs%20Key%20Size%20%5B1%2C%2031%5D-byte%20keys.png)
 
 #### 大规模密钥速度测试（262144字节密钥）
 
-| 算法                    | 每周期处理字节数 | 在3.5 GHz下的速度 (GiB/秒) |
-|------------------------|-----------------|---------------------------|
-| **MuseAir**            | 10.89           | 35.49                      |
-| **WyHash (非严格版)**     | 10.78           | 35.15                      |
-| **WyHash (严格版)**       | 7.41            | 24.14                      |
-| **RapidHash**          | 10.85           | 35.36                      |
-| **RapidHash (保护版)**   | 7.41            | 24.14                      |
-
-- **赢家**：在大规模密钥速度测试中，**MuseAir** 稍微领先，达到了最高的每周期处理字节数和GiB/秒。RapidHash紧随其后，而WyHash（严格版）则明显落后。
-
-### 分析
-
-从这些结果中，我们可以得出结论，尽管MuseAir在小规模密钥哈希方面不如WyHash和RapidHash表现出色，但它在大规模密钥场景中表现尤为优异，这对于处理大量数据的应用至关重要。
-
-WyHash的非严格版本在各个方面表现稳定，特别是在处理较小密钥的场景中。与此同时，RapidHash展现了出色的一致性，使其成为根据不同用例选择的多功能选项。
-
-MuseAir的优势在于其在处理较大数据集时的性能平衡，使其成为优先考虑吞吐量而非对小输入进行最小周期计数的系统的绝佳选择。
-
-这些结果清晰地展现了每种算法的优点和缺点，帮助开发者根据自身的具体需求做出明智的决策。
+![Bulk Speed Test](images/Bulk%20Speed%20Test%20-%20GiBsec%20vs%20Alignment%20for%20wyhash%2C%20rapidhash%2C%20MuseAir%2C%20and%20MuseAir-BFast.png)
