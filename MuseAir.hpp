@@ -18,12 +18,18 @@
 #if !defined( NON_CRYPTOGRAPHIC_HASH_MUSE_AIR_HPP )
 #define NON_CRYPTOGRAPHIC_HASH_MUSE_AIR_HPP
 
-#include <immintrin.h>
 #include <cstdint>
 #include <array>
 #include <vector>
 #include <algorithm>
 #include <bit>		// for std::endian std::rotl std::rotr
+#include <cstring>	// for std::memcpy
+
+// MSVC provides _umul128 on x64 in <intrin.h>. Do not include x86 SIMD headers unconditionally.
+// MSVC 在 x64 下通过 <intrin.h> 提供 _umul128；不要无条件引入 x86 SIMD 相关头文件。
+#if defined( _MSC_VER ) && ( defined( _M_X64 ) || defined( __x86_64__ ) )
+#include <intrin.h>
+#endif
 
 #if defined( _MSC_VER )
 #define FORCE_INLINE __forceinline
@@ -267,28 +273,6 @@ FORCE_INLINE void multiple64_128bit( uint64_t x, uint64_t y, Values2<uint64_t>& 
 }
 
 template <bool BlindFast>
-FORCE_INLINE void mumix(uint64_t input_p, uint64_t input_q, uint64_t* state_p, uint64_t* state_q )
-{
-	if constexpr( !BlindFast )
-	{
-		Values2<uint64_t> result{0, 0};
-		*state_p ^= input_p;
-		*state_q ^= input_q;
-		multiple64_128bit( *state_p, *state_q, result );
-		auto& [low, high] = result;
-		*state_p ^= low;
-		*state_q ^= high;
-	}
-	else
-	{
-		Values2<uint64_t> result{0, 0};
-		multiple64_128bit( *state_p ^ input_p, *state_q ^ input_q,  result );
-		*state_p = result.first;
-		*state_q = result.second;
-	}
-}
-
-template <bool BlindFast>
 class MuseAir
 {
 public:
@@ -296,299 +280,19 @@ public:
 	template <bool ByteSwap>
 	inline void hash( const void* bytes, const size_t length, const uint64_t seed, void* result )
 	{
-		Values2<uint64_t> hash_values {0, 0};
-		auto& [out_lo, out_hi] = hash_values;
-
-		if ( length <= segment_size(4) ) [[likely]]
-		{
-			// 更可能会执行的分支
-			// Short
-
-			uint64_t low0 = 0, low1 = 0, low2 = 0;
-			uint64_t high0 = 0, high1 = 0, high2 = 0;
-
-			Values2<uint64_t> values_0{0, 0};
-			multiple64_128bit(seed ^ MUSEAIR_CONSTANT[0], length ^ MUSEAIR_CONSTANT[1], values_0);
-			low2  = values_0.first;
-			high2 = values_0.second;
-
-			Values2<uint64_t> half_hash_state{0, 0};
-			read_short<ByteSwap>((uint8_t*)bytes, length <= 16 ? length : 16, half_hash_state);
-			auto& [i, j] = half_hash_state;
-			i ^= length ^ low2;
-			j ^= seed ^ high2;
-
-			if (length > segment_size(2)) [[unlikely]]
-			{
-				Values2<uint64_t> values_1{0, 0};
-				read_short<ByteSwap>((uint8_t*)bytes + segment_size(2), length - segment_size(2), values_1);
-				Values2<uint64_t> a {0, 0};
-				Values2<uint64_t> b {0, 0};
-				multiple64_128bit(MUSEAIR_CONSTANT[2], MUSEAIR_CONSTANT[3] ^ values_1.first, a);
-				multiple64_128bit(MUSEAIR_CONSTANT[4], MUSEAIR_CONSTANT[5] ^ values_1.second, b);
-				low0 = a.first, high0 = a.second;
-				low1 = b.first, high1 = b.second;
-				i ^= low0 ^ high1;
-				j ^= low1 ^ high0;
-			}
-
-			/*-------- epilogue short 64-bit --------*/
-
-			multiple64_128bit(i ^ MUSEAIR_CONSTANT[2], j ^ MUSEAIR_CONSTANT[3], values_0);
-			low2 = values_0.first;
-			high2 = values_0.second;
-			if constexpr ( !BlindFast )
-			{
-				i ^= low2;
-				j ^= high2;
-			}
-			else
-			{
-				i = low2;
-				j = high2;
-			}
-			multiple64_128bit(i ^ MUSEAIR_CONSTANT[ 4 ], j ^ MUSEAIR_CONSTANT[ 5 ], values_0);
-			low2 = values_0.first;
-			high2 = values_0.second;
-			if constexpr ( !BlindFast )
-			{
-				out_lo = i ^ j ^ low2 ^ high2;
-			}
-			else
-			{
-				out_lo = low2 ^ high2;
-			}
-		}
-		else
-		{
-			// Loong
-
-			uint64_t low0 = 0, low1 = 0, low2 = 0, low3 = 0, low4 = 0, low5 = MUSEAIR_CONSTANT[6];
-			uint64_t high0 = 0, high1 = 0, high2 = 0, high3 = 0, high4 = 0, high5 = 0;
-
-			const uint8_t* byte_pointer = (uint8_t*)bytes;
-			size_t offset = length;
-
-			std::array<uint64_t, 6> state_array =
-			{ 
-				MUSEAIR_CONSTANT[ 0 ] + seed,
-				MUSEAIR_CONSTANT[ 1 ] - seed,
-				MUSEAIR_CONSTANT[ 2 ] ^ seed,
-				MUSEAIR_CONSTANT[ 3 ] + seed,
-				MUSEAIR_CONSTANT[ 4 ] - seed,
-				MUSEAIR_CONSTANT[ 5 ] ^ seed
-			};
-
-			if(offset >= segment_size(12)) [[unlikely]]
-			{
-				Values2<uint64_t> ring_accumulator_values {0, 0};
-				do
-				{
-					//Ring accumulator
-					if constexpr ( !BlindFast )
-					{
-						// If BlindFast mode is not enabled, apply full processing including modular additions
-						// 如果未启用BlindFast模式，则应用包括模加操作在内的完整处理
-
-						// First pair (state[0] and state[1])
-						// 处理第一对（state[0] 和 state[1]）
-						state_array[ 0 ] ^= read_u64<ByteSwap>( byte_pointer );
-						state_array[ 1 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(1) );
-						multiple64_128bit( state_array[ 0 ], state_array[ 1 ], ring_accumulator_values );
-						low0 = ring_accumulator_values.first;
-						high0 = ring_accumulator_values.second;
-						state_array[ 0 ] += ( low5 ^ high0 );
-						// Update state with ring accumulator and high0
-						// 使用环形累加器和high0更新状态
-
-						// Second pair (state[1] and state[2])
-						// 处理第二对（state[1] 和 state[2]）
-						state_array[ 1 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(2) );
-						state_array[ 2 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(3) );
-						multiple64_128bit( state_array[ 1 ], state_array[ 2 ], ring_accumulator_values );
-						low1 = ring_accumulator_values.first;
-						high1 = ring_accumulator_values.second;
-						state_array[ 1 ] += ( low0 ^ high1 );
-						// Update state with low0 and high1
-						// 使用low0和high1更新状态
-
-						// Third pair (state[2] and state[3])
-						// 处理第三对（state[2] 和 state[3]）
-						state_array[ 2 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(4) );
-						state_array[ 3 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(5) );
-						multiple64_128bit( state_array[ 2 ], state_array[ 3 ], ring_accumulator_values );
-						low2 = ring_accumulator_values.first;
-						high2 = ring_accumulator_values.second;
-						state_array[ 2 ] += ( low1 ^ high2 );
-						// Update state with low1 and high2
-						// 使用low1和high2更新状态
-
-						// Fourth pair (state[3] and state[4])
-						// 处理第四对（state[3] 和 state[4]）
-						state_array[ 3 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(6) );
-						state_array[ 4 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(7) );
-						multiple64_128bit( state_array[ 3 ], state_array[ 4 ], ring_accumulator_values );
-						low3 = ring_accumulator_values.first;
-						high3 = ring_accumulator_values.second;
-						state_array[ 3 ] += ( low2 ^ high3 );
-						// Update state with low2 and high3
-						// 使用low2和high3更新状态
-
-						// Fifth pair (state[4] and state[5])
-						// 处理第五对（state[4] 和 state[5]）
-						state_array[ 4 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(8) );
-						state_array[ 5 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(9) );
-						multiple64_128bit( state_array[ 4 ], state_array[ 5 ], ring_accumulator_values );
-						low4 = ring_accumulator_values.first;
-						high4 = ring_accumulator_values.second;
-						state_array[ 4 ] += ( low3 ^ high4 );
-						// Update state with low3 and high4
-						// 使用low3和high4更新状态
-
-						// Final pair (state[5] and state[0])
-						// 处理最后一对（state[5] 和 state[0]）
-						state_array[ 5 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(10) );
-						state_array[ 0 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(11) );
-						multiple64_128bit( state_array[ 5 ], state_array[ 0 ], ring_accumulator_values );
-						low5 = ring_accumulator_values.first;
-						high5 = ring_accumulator_values.second;
-						state_array[ 5 ] += ( low4 ^ high5 );
-						// Update state with low4 and high5
-						// 使用low4和high5更新状态
-					}
-					else
-					{
-						// Apply the BlindFast mode optimizations by directly setting the state without modular additions
-						// 应用BlindFast模式优化，直接设置状态而不进行模加操作
-
-						state_array[ 0 ] ^= read_u64<ByteSwap>( byte_pointer );
-						state_array[ 1 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(1) );
-						multiple64_128bit( state_array[ 0 ], state_array[ 1 ], ring_accumulator_values );
-						low0 = ring_accumulator_values.first;
-						high0 = ring_accumulator_values.second;
-						state_array[ 0 ] = ( low5 ^ high0 );
-						// Directly set state with ring accumulator and high0
-						// 直接使用环形累加器和high0设置状态
-
-						state_array[ 1 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(2) );
-						state_array[ 2 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(3) );
-						multiple64_128bit( state_array[ 1 ], state_array[ 2 ], ring_accumulator_values );
-						low1 = ring_accumulator_values.first;
-						high1 = ring_accumulator_values.second;
-						state_array[ 1 ] = ( low0 ^ high1 );
-						// Directly set state with low0 and high1
-						// 直接使用low0和high1设置状态
-
-						state_array[ 2 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(4) );
-						state_array[ 3 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(5) );
-						multiple64_128bit( state_array[ 2 ], state_array[ 3 ], ring_accumulator_values );
-						low2 = ring_accumulator_values.first;
-						high2 = ring_accumulator_values.second;
-						state_array[ 2 ] = ( low1 ^ high2 );
-						// Directly set state with low1 and high2
-						// 直接使用low1和high2设置状态
-
-						state_array[ 3 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(6) );
-						state_array[ 4 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(7) );
-						multiple64_128bit( state_array[ 3 ], state_array[ 4 ], ring_accumulator_values );
-						low3 = ring_accumulator_values.first;
-						high3 = ring_accumulator_values.second;
-						state_array[ 3 ] = ( low2 ^ high3 );
-						// Directly set state with low2 and high3
-						// 直接使用low2和high3设置状态
-
-						state_array[ 4 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(8) );
-						state_array[ 5 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(9) );
-						multiple64_128bit( state_array[ 4 ], state_array[ 5 ], ring_accumulator_values );
-						low4 = ring_accumulator_values.first;
-						high4 = ring_accumulator_values.second;
-						state_array[ 4 ] = ( low3 ^ high4 );
-						// Directly set state with low3 and high4
-						// 直接使用low3和high4设置状态
-
-						state_array[ 5 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(10) );
-						state_array[ 0 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(11) );
-						multiple64_128bit( state_array[ 5 ], state_array[ 0 ], ring_accumulator_values );
-						low5 = ring_accumulator_values.first;
-						high5 = ring_accumulator_values.second;
-						state_array[ 5 ] = ( low4 ^ high5 );
-						// Directly set state with low4 and high5
-						// 直接使用low4和high5设置状态
-					}
-					
-					byte_pointer += segment_size(12);
-					offset -= segment_size(12);
-
-				} while ( offset >= segment_size(12) );
-
-				state_array[0] ^= low5;
-			}
-
-			if ( offset >= segment_size( 6 ) ) [[unlikely]]
-			{
-				mumix<BlindFast>( read_u64<ByteSwap>( byte_pointer + segment_size( 0 ) ), read_u64<ByteSwap>( byte_pointer + segment_size( 1 ) ), &state_array[ 0 ], &state_array[ 1 ] );
-				mumix<BlindFast>( read_u64<ByteSwap>( byte_pointer + segment_size( 2 ) ), read_u64<ByteSwap>( byte_pointer + segment_size( 3 ) ), &state_array[ 2 ], &state_array[ 3 ] );
-				mumix<BlindFast>( read_u64<ByteSwap>( byte_pointer + segment_size( 4 ) ), read_u64<ByteSwap>( byte_pointer + segment_size( 5 ) ), &state_array[ 4 ], &state_array[ 5 ] );
-
-				byte_pointer += segment_size( 6 );
-				offset -= segment_size( 6 );
-			}
-
-			if ( offset >= segment_size( 2 ) ) [[likely]]
-			{
-				mumix<BlindFast>( read_u64<ByteSwap>( byte_pointer + segment_size( 0 ) ), read_u64<ByteSwap>( byte_pointer + segment_size( 1 ) ), &state_array[ 0 ], &state_array[ 3 ] );
-				if ( offset >= segment_size( 4 ) ) [[likely]]
-				{
-					mumix<BlindFast>( read_u64<ByteSwap>( byte_pointer + segment_size( 2 ) ), read_u64<ByteSwap>( byte_pointer + segment_size( 3 ) ), &state_array[ 1 ], &state_array[ 4 ] );
-				}
-			}
-
-			mumix<BlindFast>( read_u64<ByteSwap>( byte_pointer + offset - segment_size( 2 ) ), read_u64<ByteSwap>( byte_pointer + offset - segment_size( 1 ) ), &state_array[ 2 ], &state_array[ 5 ] );
-
-			/*-------- epilogue loong 64-bit --------*/
-
-			Values3<uint64_t> half_hash_state{0, 0, 0};
-			auto& [i, j, k] = half_hash_state;
-
-			i = state_array[0] - state_array[1];
-			j = state_array[2] - state_array[3];
-			k = state_array[4] - state_array[5];
-
-			Values2<uint64_t> a {0, 0};
-			Values2<uint64_t> b {0, 0};
-			Values2<uint64_t> c {0, 0};
-
-			i = std::rotl(i, length & 63);
-			j = std::rotr(j, length & 63);
-			k ^= length;
-
-			multiple64_128bit(i, j, a);
-			low0 = a.first, high0 = a.second;
-			multiple64_128bit(j, k, b);
-			low1 = b.first, high1 = b.second;
-			multiple64_128bit(k, i, c);
-			low2 = c.first, high2 = c.second;
-			i = low0 ^ high2;
-			j = low1 ^ high0;
-			k = low2 ^ high1;
-
-			// Unique code block
-			multiple64_128bit(i, j, a);
-			low0 = a.first, high0 = a.second;
-			multiple64_128bit(j, k, b);
-			low1 = b.first, high1 = b.second;
-			multiple64_128bit(k, i, c);
-			low2 = c.first, high2 = c.second;
-			out_lo = (low0 ^ high2) + (low1 ^ high0) + (low2 ^ high1);
-		}
+		Values2<uint64_t> hash_values{ 0, 0 };
+		calculate_hash<ByteSwap, false>( bytes, length, seed, hash_values );
+		const uint64_t output_lower = hash_values.first;
 
 		if constexpr(std::endian::native == std::endian::little)
 		{
-			write_u64<false>((uint8_t*)result + 0, out_lo);
+			uint64_t output_value = output_lower;
+			write_u64<false>( (uint8_t*)result + 0, output_value );
 		}
 		else
 		{
-			write_u64<true>((uint8_t*)result + 0, out_lo);
+			uint64_t output_value = output_lower;
+			write_u64<true>( (uint8_t*)result + 0, output_value );
 		}
 	}
 
@@ -596,310 +300,386 @@ public:
 	template <bool ByteSwap>
 	inline void hash_128( const void* bytes, const size_t length, const uint64_t seed, void* result )
 	{
-		Values2<uint64_t> hash_values {0, 0};
-		auto& [out_lo, out_hi] = hash_values;
-
-		if ( length <= segment_size(4) ) [[likely]]
-		{
-			// 更可能会执行的分支
-			// Short
-
-			uint64_t low0 = 0, low1 = 0, low2 = 0;
-			uint64_t high0 = 0, high1 = 0, high2 = 0;
-
-			Values2<uint64_t> values_0{0, 0};
-			multiple64_128bit(seed ^ MUSEAIR_CONSTANT[0], length ^ MUSEAIR_CONSTANT[1], values_0);
-			low2  = values_0.first;
-			high2 = values_0.second;
-
-			Values2<uint64_t> half_hash_state{0, 0};
-			read_short<ByteSwap>((uint8_t*)bytes, length <= 16 ? length : 16, half_hash_state);
-			auto& [i, j] = half_hash_state;
-			i ^= length ^ low2;
-			j ^= seed ^ high2;
-
-			if (length > segment_size(2)) [[unlikely]]
-			{
-				Values2<uint64_t> values_1{0, 0};
-				read_short<ByteSwap>((uint8_t*)bytes + segment_size(2), length - segment_size(2), values_1);
-				Values2<uint64_t> a {0, 0};
-				Values2<uint64_t> b {0, 0};
-				multiple64_128bit(MUSEAIR_CONSTANT[2], MUSEAIR_CONSTANT[3] ^ values_1.first, a);
-				multiple64_128bit(MUSEAIR_CONSTANT[4], MUSEAIR_CONSTANT[5] ^ values_1.second, b);
-				low0 = a.first, high0 = a.second;
-				low1 = b.first, high1 = b.second;
-				i ^= low0 ^ high1;
-				j ^= low1 ^ high0;
-			}
-
-			/*-------- epilogue short 128-bit --------*/
-
-			multiple64_128bit(i, j, values_0);
-			low0 = values_0.first;
-			high0 = values_0.second;
-			multiple64_128bit(i ^ MUSEAIR_CONSTANT[2], j ^ MUSEAIR_CONSTANT[3], values_0);
-			low1 = values_0.first;
-			high1 = values_0.second;
-			i = low0 ^ high1;
-			j = low1 ^ high0;
-
-			multiple64_128bit(i, j, values_0);
-			low0 = values_0.first;
-			high0 = values_0.second;
-			multiple64_128bit(i ^ MUSEAIR_CONSTANT[4], j ^ MUSEAIR_CONSTANT[5], values_0);
-			low1 = values_0.first;
-			high1 = values_0.second;
-			out_lo = low0 ^ high1;
-			out_hi = low1 ^ high0;
-		}
-		else
-		{
-			uint64_t low0 = 0, low1 = 0, low2 = 0, low3 = 0, low4 = 0, low5 = MUSEAIR_CONSTANT[6];
-			uint64_t high0 = 0, high1 = 0, high2 = 0, high3 = 0, high4 = 0, high5 = 0;
-
-			const uint8_t* byte_pointer = (uint8_t*)bytes;
-			size_t offset = length;
-
-			std::array<uint64_t, 6> state_array =
-			{ 
-				MUSEAIR_CONSTANT[ 0 ] + seed,
-				MUSEAIR_CONSTANT[ 1 ] - seed,
-				MUSEAIR_CONSTANT[ 2 ] ^ seed,
-				MUSEAIR_CONSTANT[ 3 ] + seed,
-				MUSEAIR_CONSTANT[ 4 ] - seed,
-				MUSEAIR_CONSTANT[ 5 ] ^ seed
-			};
-
-			if(offset >= segment_size(12)) [[unlikely]]
-			{
-				Values2<uint64_t> ring_accumulator_values {0, 0};
-				while ( offset >= segment_size(12) )
-				{
-					//Ring accumulator
-					if constexpr ( !BlindFast )
-					{
-						// If BlindFast mode is not enabled, apply full processing including modular additions
-						// 如果未启用BlindFast模式，则应用包括模加操作在内的完整处理
-
-						// First pair (state[0] and state[1])
-						// 处理第一对（state[0] 和 state[1]）
-						state_array[ 0 ] ^= read_u64<ByteSwap>( byte_pointer );
-						state_array[ 1 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(1) );
-						multiple64_128bit( state_array[ 0 ], state_array[ 1 ], ring_accumulator_values );
-						low0 = ring_accumulator_values.first;
-						high0 = ring_accumulator_values.second;
-						state_array[ 0 ] += ( low5 ^ high0 );
-						// Update state with ring accumulator and high0
-						// 使用环形累加器和high0更新状态
-
-						// Second pair (state[1] and state[2])
-						// 处理第二对（state[1] 和 state[2]）
-						state_array[ 1 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(2) );
-						state_array[ 2 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(3) );
-						multiple64_128bit( state_array[ 1 ], state_array[ 2 ], ring_accumulator_values );
-						low1 = ring_accumulator_values.first;
-						high1 = ring_accumulator_values.second;
-						state_array[ 1 ] += ( low0 ^ high1 );
-						// Update state with low0 and high1
-						// 使用low0和high1更新状态
-
-						// Third pair (state[2] and state[3])
-						// 处理第三对（state[2] 和 state[3]）
-						state_array[ 2 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(4) );
-						state_array[ 3 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(5) );
-						multiple64_128bit( state_array[ 2 ], state_array[ 3 ], ring_accumulator_values );
-						low2 = ring_accumulator_values.first;
-						high2 = ring_accumulator_values.second;
-						state_array[ 2 ] += ( low1 ^ high2 );
-						// Update state with low1 and high2
-						// 使用low1和high2更新状态
-
-						// Fourth pair (state[3] and state[4])
-						// 处理第四对（state[3] 和 state[4]）
-						state_array[ 3 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(6) );
-						state_array[ 4 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(7) );
-						multiple64_128bit( state_array[ 3 ], state_array[ 4 ], ring_accumulator_values );
-						low3 = ring_accumulator_values.first;
-						high3 = ring_accumulator_values.second;
-						state_array[ 3 ] += ( low2 ^ high3 );
-						// Update state with low2 and high3
-						// 使用low2和high3更新状态
-
-						// Fifth pair (state[4] and state[5])
-						// 处理第五对（state[4] 和 state[5]）
-						state_array[ 4 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(8) );
-						state_array[ 5 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(9) );
-						multiple64_128bit( state_array[ 4 ], state_array[ 5 ], ring_accumulator_values );
-						low4 = ring_accumulator_values.first;
-						high4 = ring_accumulator_values.second;
-						state_array[ 4 ] += ( low3 ^ high4 );
-						// Update state with low3 and high4
-						// 使用low3和high4更新状态
-
-						// Final pair (state[5] and state[0])
-						// 处理最后一对（state[5] 和 state[0]）
-						state_array[ 5 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(10) );
-						state_array[ 0 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(11) );
-						multiple64_128bit( state_array[ 5 ], state_array[ 0 ], ring_accumulator_values );
-						low5 = ring_accumulator_values.first;
-						high5 = ring_accumulator_values.second;
-						state_array[ 5 ] += ( low4 ^ high5 );
-						// Update state with low4 and high5
-						// 使用low4和high5更新状态
-					}
-					else
-					{
-						// Apply the BlindFast mode optimizations by directly setting the state without modular additions
-						// 应用BlindFast模式优化，直接设置状态而不进行模加操作
-
-						state_array[ 0 ] ^= read_u64<ByteSwap>( byte_pointer );
-						state_array[ 1 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(1) );
-						multiple64_128bit( state_array[ 0 ], state_array[ 1 ], ring_accumulator_values );
-						low0 = ring_accumulator_values.first;
-						high0 = ring_accumulator_values.second;
-						state_array[ 0 ] = ( low5 ^ high0 );
-						// Directly set state with ring accumulator and high0
-						// 直接使用环形累加器和high0设置状态
-
-						state_array[ 1 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(2) );
-						state_array[ 2 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(3) );
-						multiple64_128bit( state_array[ 1 ], state_array[ 2 ], ring_accumulator_values );
-						low1 = ring_accumulator_values.first;
-						high1 = ring_accumulator_values.second;
-						state_array[ 1 ] = ( low0 ^ high1 );
-						// Directly set state with low0 and high1
-						// 直接使用low0和high1设置状态
-
-						state_array[ 2 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(4) );
-						state_array[ 3 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(5) );
-						multiple64_128bit( state_array[ 2 ], state_array[ 3 ], ring_accumulator_values );
-						low2 = ring_accumulator_values.first;
-						high2 = ring_accumulator_values.second;
-						state_array[ 2 ] = ( low1 ^ high2 );
-						// Directly set state with low1 and high2
-						// 直接使用low1和high2设置状态
-
-						state_array[ 3 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(6) );
-						state_array[ 4 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(7) );
-						multiple64_128bit( state_array[ 3 ], state_array[ 4 ], ring_accumulator_values );
-						low3 = ring_accumulator_values.first;
-						high3 = ring_accumulator_values.second;
-						state_array[ 3 ] = ( low2 ^ high3 );
-						// Directly set state with low2 and high3
-						// 直接使用low2和high3设置状态
-
-						state_array[ 4 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(8) );
-						state_array[ 5 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(9) );
-						multiple64_128bit( state_array[ 4 ], state_array[ 5 ], ring_accumulator_values );
-						low4 = ring_accumulator_values.first;
-						high4 = ring_accumulator_values.second;
-						state_array[ 4 ] = ( low3 ^ high4 );
-						// Directly set state with low3 and high4
-						// 直接使用low3和high4设置状态
-
-						state_array[ 5 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(10) );
-						state_array[ 0 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size(11) );
-						multiple64_128bit( state_array[ 5 ], state_array[ 0 ], ring_accumulator_values );
-						low5 = ring_accumulator_values.first;
-						high5 = ring_accumulator_values.second;
-						state_array[ 5 ] = ( low4 ^ high5 );
-						// Directly set state with low4 and high5
-						// 直接使用low4和high5设置状态
-					}
-					
-					byte_pointer += segment_size(12);
-					offset -= segment_size(12);
-				};
-
-				state_array[0] ^= low5;
-			}
-
-			if ( offset >= segment_size( 6 ) ) [[unlikely]]
-			{
-				mumix<BlindFast>( read_u64<ByteSwap>( byte_pointer + segment_size( 0 ) ), read_u64<ByteSwap>( byte_pointer + segment_size( 1 ) ), &state_array[ 0 ], &state_array[ 1 ] );
-				mumix<BlindFast>( read_u64<ByteSwap>( byte_pointer + segment_size( 2 ) ), read_u64<ByteSwap>( byte_pointer + segment_size( 3 ) ), &state_array[ 2 ], &state_array[ 3 ] );
-				mumix<BlindFast>( read_u64<ByteSwap>( byte_pointer + segment_size( 4 ) ), read_u64<ByteSwap>( byte_pointer + segment_size( 5 ) ), &state_array[ 4 ], &state_array[ 5 ] );
-
-				byte_pointer += segment_size( 6 );
-				offset -= segment_size( 6 );
-			}
-
-			if ( offset >= segment_size( 2 ) ) [[likely]]
-			{
-				mumix<BlindFast>( read_u64<ByteSwap>( byte_pointer + segment_size( 0 ) ), read_u64<ByteSwap>( byte_pointer + segment_size( 1 ) ), &state_array[ 0 ], &state_array[ 3 ] );
-				if ( offset >= segment_size( 4 ) ) [[likely]]
-				{
-					mumix<BlindFast>( read_u64<ByteSwap>( byte_pointer + segment_size( 2 ) ), read_u64<ByteSwap>( byte_pointer + segment_size( 3 ) ), &state_array[ 1 ], &state_array[ 4 ] );
-				}
-			}
-
-			//Bug fixed
-			// 当剩余 >=16 字节时，才进行这次尾部混合
-			mumix<BlindFast>
-			(
-				read_u64<ByteSwap>( byte_pointer + offset - segment_size(2) ),
-				read_u64<ByteSwap>( byte_pointer + offset - segment_size(1) ),
-				&state_array[2], &state_array[5]
-			);
-
-			/*-------- epilogue loong 128-bit --------*/
-
-			Values3<uint64_t> half_hash_state{0, 0, 0};
-			auto& [i, j, k] = half_hash_state;
-
-			i = state_array[0] - state_array[1];
-			j = state_array[2] - state_array[3];
-			k = state_array[4] - state_array[5];
-
-			i = std::rotl(i, length & 63);
-			j = std::rotr(j, length & 63);
-			k ^= length;
-
-			Values2<uint64_t> a{0, 0}, b{0, 0}, c{0, 0};
-
-			// (i,j) → (low0, high0)
-			multiple64_128bit(i, j, a);
-			low0  = a.first;  high0 = a.second;
-
-			// (j,k) → (low1, high1)
-			multiple64_128bit(j, k, b);
-			low1  = b.first;  high1 = b.second;
-
-			// (k,i) → (low2, high2)
-			multiple64_128bit(k, i, c);
-			low2  = c.first;  high2 = c.second;
-
-			// 合并成新的 i,j,k
-			i = low0 ^ high2;
-			j = low1 ^ high0;
-			k = low2 ^ high1;
-
-			// (i,j) → (low0, high0)
-			multiple64_128bit(i, j, a);
-			low0  = a.first;  high0 = a.second;
-
-			// (j,k) → (low1, high1)
-			multiple64_128bit(j, k, b);
-			low1  = b.first;  high1 = b.second;
-
-			// (k,i) → (low2, high2)
-			multiple64_128bit(k, i, c);
-			low2  = c.first;  high2 = c.second;
-
-			// result
-			out_lo = low0 ^ low1 ^ high2;
-			out_hi = high0 ^ high1 ^ low2;
-		}
+		Values2<uint64_t> hash_values{ 0, 0 };
+		calculate_hash<ByteSwap, true>( bytes, length, seed, hash_values );
+		const uint64_t output_lower = hash_values.first;
+		const uint64_t output_higher = hash_values.second;
 
 		if constexpr(std::endian::native == std::endian::little)
 		{
-			write_u64<false>((uint8_t*)result + 0, out_lo);
-			write_u64<false>((uint8_t*)result + 8, out_hi);
+			uint64_t output_value_0 = output_lower;
+			uint64_t output_value_1 = output_higher;
+			write_u64<false>( (uint8_t*)result + 0, output_value_0 );
+			write_u64<false>( (uint8_t*)result + 8, output_value_1 );
 		}
 		else
 		{
-			write_u64<true>((uint8_t*)result + 0, out_lo);
-			write_u64<true>((uint8_t*)result + 8, out_hi);
+			uint64_t output_value_0 = output_lower;
+			uint64_t output_value_1 = output_higher;
+			write_u64<true>( (uint8_t*)result + 0, output_value_0 );
+			write_u64<true>( (uint8_t*)result + 8, output_value_1 );
+		}
+	}
+
+private:
+	/**
+	 * @brief Core hash function shared by 64-bit and 128-bit outputs.
+	 *
+	 * 该函数是64位与128位输出的共享核心实现，逻辑与官方参考实现保持一致。
+	 *
+	 * @tparam ByteSwap Whether to swap byte order when reading input.
+	 * @tparam OutputIs128Bit Whether to compute 128-bit output.
+	 * @param bytes Input message bytes.
+	 * @param length Input message length in bytes.
+	 * @param seed User-provided seed.
+	 * @param output Output values (lower 64-bit always valid; higher 64-bit valid only for 128-bit mode).
+	 */
+	template <bool ByteSwap, bool OutputIs128Bit>
+	static inline void calculate_hash( const void* bytes, const size_t length, const uint64_t seed, Values2<uint64_t>& output )
+	{
+		if ( length <= segment_size( 4 ) ) [[likely]]
+		{
+			calculate_hash_short<ByteSwap, OutputIs128Bit>( static_cast<const uint8_t*>( bytes ), length, seed, output );
+		}
+		else
+		{
+			calculate_hash_long<ByteSwap, OutputIs128Bit>( static_cast<const uint8_t*>( bytes ), length, seed, output );
+		}
+	}
+
+	template <bool ByteSwap, bool OutputIs128Bit>
+	static FORCE_INLINE void calculate_hash_short( const uint8_t* bytes, const size_t length, const uint64_t seed, Values2<uint64_t>& output )
+	{
+		uint64_t lower_part_0 = 0;
+		uint64_t lower_part_1 = 0;
+		uint64_t lower_part_2 = 0;
+		uint64_t higher_part_0 = 0;
+		uint64_t higher_part_1 = 0;
+		uint64_t higher_part_2 = 0;
+
+		Values2<uint64_t> multiplication_result{ 0, 0 };
+		multiple64_128bit( seed ^ MUSEAIR_CONSTANT[ 0 ], length ^ MUSEAIR_CONSTANT[ 1 ], multiplication_result );
+		lower_part_2 = multiplication_result.first;
+		higher_part_2 = multiplication_result.second;
+
+		Values2<uint64_t> first_pair_values{ 0, 0 };
+		read_short<ByteSwap>( bytes, length <= 16 ? length : 16, first_pair_values );
+		uint64_t first_value = first_pair_values.first ^ ( length ^ lower_part_2 );
+		uint64_t second_value = first_pair_values.second ^ ( seed ^ higher_part_2 );
+
+		if ( length > segment_size( 2 ) ) [[unlikely]]
+		{
+			Values2<uint64_t> second_pair_values{ 0, 0 };
+			read_short<ByteSwap>( bytes + segment_size( 2 ), length - segment_size( 2 ), second_pair_values );
+
+			Values2<uint64_t> multiplication_result_0{ 0, 0 };
+			Values2<uint64_t> multiplication_result_1{ 0, 0 };
+			multiple64_128bit( MUSEAIR_CONSTANT[ 2 ], MUSEAIR_CONSTANT[ 3 ] ^ second_pair_values.first, multiplication_result_0 );
+			multiple64_128bit( MUSEAIR_CONSTANT[ 4 ], MUSEAIR_CONSTANT[ 5 ] ^ second_pair_values.second, multiplication_result_1 );
+
+			lower_part_0 = multiplication_result_0.first;
+			higher_part_0 = multiplication_result_0.second;
+			lower_part_1 = multiplication_result_1.first;
+			higher_part_1 = multiplication_result_1.second;
+
+			first_value ^= lower_part_0 ^ higher_part_1;
+			second_value ^= lower_part_1 ^ higher_part_0;
+		}
+
+		// -------- epilogue for short inputs / 短输入尾段混合 --------
+		if constexpr ( OutputIs128Bit )
+		{
+			Values2<uint64_t> multiplication_result_0{ 0, 0 };
+			Values2<uint64_t> multiplication_result_1{ 0, 0 };
+			multiple64_128bit( first_value, second_value, multiplication_result_0 );
+			multiple64_128bit( first_value ^ MUSEAIR_CONSTANT[ 2 ], second_value ^ MUSEAIR_CONSTANT[ 3 ], multiplication_result_1 );
+
+			first_value = multiplication_result_0.first ^ multiplication_result_1.second;
+			second_value = multiplication_result_1.first ^ multiplication_result_0.second;
+
+			multiple64_128bit( first_value, second_value, multiplication_result_0 );
+			multiple64_128bit( first_value ^ MUSEAIR_CONSTANT[ 4 ], second_value ^ MUSEAIR_CONSTANT[ 5 ], multiplication_result_1 );
+
+			output.first = multiplication_result_0.first ^ multiplication_result_1.second;
+			output.second = multiplication_result_1.first ^ multiplication_result_0.second;
+		}
+		else
+		{
+			if constexpr ( !BlindFast )
+			{
+				Values2<uint64_t> multiplication_result_0{ 0, 0 };
+				Values2<uint64_t> multiplication_result_1{ 0, 0 };
+				multiple64_128bit( first_value ^ MUSEAIR_CONSTANT[ 2 ], second_value ^ MUSEAIR_CONSTANT[ 3 ], multiplication_result_0 );
+				multiple64_128bit( first_value ^ MUSEAIR_CONSTANT[ 4 ], second_value ^ MUSEAIR_CONSTANT[ 5 ], multiplication_result_1 );
+
+				first_value = multiplication_result_0.first ^ multiplication_result_1.second;
+				second_value = multiplication_result_1.first ^ multiplication_result_0.second;
+
+				multiple64_128bit( first_value, second_value, multiplication_result );
+				output.first = first_value ^ second_value ^ multiplication_result.first ^ multiplication_result.second;
+			}
+			else
+			{
+				// Fast variant: overwrite the working pair by multiply outputs.
+				// 快速变体：直接用乘法结果覆盖工作对。
+				Values2<uint64_t> multiplication_result_0{ 0, 0 };
+				multiple64_128bit( first_value ^ MUSEAIR_CONSTANT[ 2 ], second_value ^ MUSEAIR_CONSTANT[ 3 ], multiplication_result_0 );
+				first_value = multiplication_result_0.first;
+				second_value = multiplication_result_0.second;
+				multiple64_128bit( first_value ^ MUSEAIR_CONSTANT[ 4 ], second_value ^ MUSEAIR_CONSTANT[ 5 ], multiplication_result_0 );
+				output.first = multiplication_result_0.first ^ multiplication_result_0.second;
+			}
+			output.second = 0;
+		}
+	}
+
+	template <bool ByteSwap, bool OutputIs128Bit>
+	static NEVER_INLINE void calculate_hash_long( const uint8_t* bytes, const size_t length, const uint64_t seed, Values2<uint64_t>& output )
+	{
+		const uint8_t* byte_pointer = bytes;
+		size_t remaining_length = length;
+
+		uint64_t lower_part_0 = 0;
+		uint64_t lower_part_1 = 0;
+		uint64_t lower_part_2 = 0;
+		uint64_t lower_part_3 = 0;
+		uint64_t lower_part_4 = 0;
+		uint64_t lower_part_5 = MUSEAIR_CONSTANT[ 6 ];
+		uint64_t higher_part_0 = 0;
+		uint64_t higher_part_1 = 0;
+		uint64_t higher_part_2 = 0;
+		uint64_t higher_part_3 = 0;
+		uint64_t higher_part_4 = 0;
+		uint64_t higher_part_5 = 0;
+
+		std::array<uint64_t, 6> state_values =
+		{
+			MUSEAIR_CONSTANT[ 0 ] + seed,
+			MUSEAIR_CONSTANT[ 1 ] - seed,
+			MUSEAIR_CONSTANT[ 2 ] ^ seed,
+			MUSEAIR_CONSTANT[ 3 ] + seed,
+			MUSEAIR_CONSTANT[ 4 ] - seed,
+			MUSEAIR_CONSTANT[ 5 ] ^ seed
+		};
+
+		// -------- ring accumulator loop / 环形累加器主循环（每次处理96字节） --------
+		if ( remaining_length > segment_size( 12 ) ) [[unlikely]]
+		{
+			do
+			{
+				if constexpr ( !BlindFast )
+				{
+					state_values[ 0 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 0 ) );
+					state_values[ 1 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 1 ) );
+					Values2<uint64_t> multiplication_result_0{ 0, 0 };
+					multiple64_128bit( state_values[ 0 ], state_values[ 1 ], multiplication_result_0 );
+					lower_part_0 = multiplication_result_0.first;
+					higher_part_0 = multiplication_result_0.second;
+					state_values[ 0 ] += ( lower_part_5 ^ higher_part_0 );
+
+					state_values[ 1 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 2 ) );
+					state_values[ 2 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 3 ) );
+					Values2<uint64_t> multiplication_result_1{ 0, 0 };
+					multiple64_128bit( state_values[ 1 ], state_values[ 2 ], multiplication_result_1 );
+					lower_part_1 = multiplication_result_1.first;
+					higher_part_1 = multiplication_result_1.second;
+					state_values[ 1 ] += ( lower_part_0 ^ higher_part_1 );
+
+					state_values[ 2 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 4 ) );
+					state_values[ 3 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 5 ) );
+					Values2<uint64_t> multiplication_result_2{ 0, 0 };
+					multiple64_128bit( state_values[ 2 ], state_values[ 3 ], multiplication_result_2 );
+					lower_part_2 = multiplication_result_2.first;
+					higher_part_2 = multiplication_result_2.second;
+					state_values[ 2 ] += ( lower_part_1 ^ higher_part_2 );
+
+					state_values[ 3 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 6 ) );
+					state_values[ 4 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 7 ) );
+					Values2<uint64_t> multiplication_result_3{ 0, 0 };
+					multiple64_128bit( state_values[ 3 ], state_values[ 4 ], multiplication_result_3 );
+					lower_part_3 = multiplication_result_3.first;
+					higher_part_3 = multiplication_result_3.second;
+					state_values[ 3 ] += ( lower_part_2 ^ higher_part_3 );
+
+					state_values[ 4 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 8 ) );
+					state_values[ 5 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 9 ) );
+					Values2<uint64_t> multiplication_result_4{ 0, 0 };
+					multiple64_128bit( state_values[ 4 ], state_values[ 5 ], multiplication_result_4 );
+					lower_part_4 = multiplication_result_4.first;
+					higher_part_4 = multiplication_result_4.second;
+					state_values[ 4 ] += ( lower_part_3 ^ higher_part_4 );
+
+					state_values[ 5 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 10 ) );
+					state_values[ 0 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 11 ) );
+					Values2<uint64_t> multiplication_result_5{ 0, 0 };
+					multiple64_128bit( state_values[ 5 ], state_values[ 0 ], multiplication_result_5 );
+					lower_part_5 = multiplication_result_5.first;
+					higher_part_5 = multiplication_result_5.second;
+					state_values[ 5 ] += ( lower_part_4 ^ higher_part_5 );
+				}
+				else
+				{
+					state_values[ 0 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 0 ) );
+					state_values[ 1 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 1 ) );
+					Values2<uint64_t> multiplication_result_0{ 0, 0 };
+					multiple64_128bit( state_values[ 0 ], state_values[ 1 ], multiplication_result_0 );
+					lower_part_0 = multiplication_result_0.first;
+					higher_part_0 = multiplication_result_0.second;
+					state_values[ 0 ] = ( lower_part_5 ^ higher_part_0 );
+
+					state_values[ 1 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 2 ) );
+					state_values[ 2 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 3 ) );
+					Values2<uint64_t> multiplication_result_1{ 0, 0 };
+					multiple64_128bit( state_values[ 1 ], state_values[ 2 ], multiplication_result_1 );
+					lower_part_1 = multiplication_result_1.first;
+					higher_part_1 = multiplication_result_1.second;
+					state_values[ 1 ] = ( lower_part_0 ^ higher_part_1 );
+
+					state_values[ 2 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 4 ) );
+					state_values[ 3 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 5 ) );
+					Values2<uint64_t> multiplication_result_2{ 0, 0 };
+					multiple64_128bit( state_values[ 2 ], state_values[ 3 ], multiplication_result_2 );
+					lower_part_2 = multiplication_result_2.first;
+					higher_part_2 = multiplication_result_2.second;
+					state_values[ 2 ] = ( lower_part_1 ^ higher_part_2 );
+
+					state_values[ 3 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 6 ) );
+					state_values[ 4 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 7 ) );
+					Values2<uint64_t> multiplication_result_3{ 0, 0 };
+					multiple64_128bit( state_values[ 3 ], state_values[ 4 ], multiplication_result_3 );
+					lower_part_3 = multiplication_result_3.first;
+					higher_part_3 = multiplication_result_3.second;
+					state_values[ 3 ] = ( lower_part_2 ^ higher_part_3 );
+
+					state_values[ 4 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 8 ) );
+					state_values[ 5 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 9 ) );
+					Values2<uint64_t> multiplication_result_4{ 0, 0 };
+					multiple64_128bit( state_values[ 4 ], state_values[ 5 ], multiplication_result_4 );
+					lower_part_4 = multiplication_result_4.first;
+					higher_part_4 = multiplication_result_4.second;
+					state_values[ 4 ] = ( lower_part_3 ^ higher_part_4 );
+
+					state_values[ 5 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 10 ) );
+					state_values[ 0 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 11 ) );
+					Values2<uint64_t> multiplication_result_5{ 0, 0 };
+					multiple64_128bit( state_values[ 5 ], state_values[ 0 ], multiplication_result_5 );
+					lower_part_5 = multiplication_result_5.first;
+					higher_part_5 = multiplication_result_5.second;
+					state_values[ 5 ] = ( lower_part_4 ^ higher_part_5 );
+				}
+
+				byte_pointer += segment_size( 12 );
+				remaining_length -= segment_size( 12 );
+
+			} while ( remaining_length > segment_size( 12 ) );
+
+			// Do not forget this final state update.
+			// 不要忘记这次最终状态更新。
+			state_values[ 0 ] ^= lower_part_5;
+		}
+
+		// Reset multiplication scratch values.
+		// 重置乘法临时变量。
+		lower_part_0 = 0;
+		lower_part_1 = 0;
+		lower_part_2 = 0;
+		lower_part_3 = 0;
+		lower_part_4 = 0;
+		lower_part_5 = 0;
+		higher_part_0 = 0;
+		higher_part_1 = 0;
+		higher_part_2 = 0;
+		higher_part_3 = 0;
+		higher_part_4 = 0;
+		higher_part_5 = 0;
+
+		// -------- partial body / 分段主体（最多读取前80字节） --------
+		if ( remaining_length > segment_size( 4 ) ) [[likely]]
+		{
+			state_values[ 0 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 0 ) );
+			state_values[ 1 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 1 ) );
+			Values2<uint64_t> multiplication_result_0{ 0, 0 };
+			multiple64_128bit( state_values[ 0 ], state_values[ 1 ], multiplication_result_0 );
+			lower_part_0 = multiplication_result_0.first;
+			higher_part_0 = multiplication_result_0.second;
+
+			if ( remaining_length > segment_size( 6 ) ) [[likely]]
+			{
+				state_values[ 1 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 2 ) );
+				state_values[ 2 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 3 ) );
+				Values2<uint64_t> multiplication_result_1{ 0, 0 };
+				multiple64_128bit( state_values[ 1 ], state_values[ 2 ], multiplication_result_1 );
+				lower_part_1 = multiplication_result_1.first;
+				higher_part_1 = multiplication_result_1.second;
+
+				if ( remaining_length > segment_size( 8 ) ) [[likely]]
+				{
+					state_values[ 2 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 4 ) );
+					state_values[ 3 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 5 ) );
+					Values2<uint64_t> multiplication_result_2{ 0, 0 };
+					multiple64_128bit( state_values[ 2 ], state_values[ 3 ], multiplication_result_2 );
+					lower_part_2 = multiplication_result_2.first;
+					higher_part_2 = multiplication_result_2.second;
+
+					if ( remaining_length > segment_size( 10 ) ) [[likely]]
+					{
+						state_values[ 3 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 6 ) );
+						state_values[ 4 ] ^= read_u64<ByteSwap>( byte_pointer + segment_size( 7 ) );
+						Values2<uint64_t> multiplication_result_3{ 0, 0 };
+						multiple64_128bit( state_values[ 3 ], state_values[ 4 ], multiplication_result_3 );
+						lower_part_3 = multiplication_result_3.first;
+						higher_part_3 = multiplication_result_3.second;
+					}
+				}
+			}
+		}
+
+		// -------- mandatory tail processing / 必定执行的尾部处理 --------
+		state_values[ 4 ] ^= read_u64<ByteSwap>( byte_pointer + remaining_length - segment_size( 4 ) );
+		state_values[ 5 ] ^= read_u64<ByteSwap>( byte_pointer + remaining_length - segment_size( 3 ) );
+		Values2<uint64_t> multiplication_result_4{ 0, 0 };
+		multiple64_128bit( state_values[ 4 ], state_values[ 5 ], multiplication_result_4 );
+		lower_part_4 = multiplication_result_4.first;
+		higher_part_4 = multiplication_result_4.second;
+
+		state_values[ 5 ] ^= read_u64<ByteSwap>( byte_pointer + remaining_length - segment_size( 2 ) );
+		state_values[ 0 ] ^= read_u64<ByteSwap>( byte_pointer + remaining_length - segment_size( 1 ) );
+		Values2<uint64_t> multiplication_result_5{ 0, 0 };
+		multiple64_128bit( state_values[ 5 ], state_values[ 0 ], multiplication_result_5 );
+		lower_part_5 = multiplication_result_5.first;
+		higher_part_5 = multiplication_result_5.second;
+
+		uint64_t mix_value_0 = state_values[ 0 ] - state_values[ 1 ];
+		uint64_t mix_value_1 = state_values[ 2 ] - state_values[ 3 ];
+		uint64_t mix_value_2 = state_values[ 4 ] - state_values[ 5 ];
+
+		const int rotation_amount = static_cast<int>( length & 63 );
+		mix_value_0 = std::rotl( mix_value_0, rotation_amount );
+		mix_value_1 = std::rotr( mix_value_1, rotation_amount );
+		mix_value_2 ^= length;
+
+		mix_value_0 += ( lower_part_3 ^ higher_part_3 ^ lower_part_4 ^ higher_part_4 );
+		mix_value_1 += ( lower_part_5 ^ higher_part_5 ^ lower_part_0 ^ higher_part_0 );
+		mix_value_2 += ( lower_part_1 ^ higher_part_1 ^ lower_part_2 ^ higher_part_2 );
+
+		Values2<uint64_t> multiplication_result_0{ 0, 0 };
+		Values2<uint64_t> multiplication_result_1{ 0, 0 };
+		Values2<uint64_t> multiplication_result_2{ 0, 0 };
+		multiple64_128bit( mix_value_0, mix_value_1, multiplication_result_0 );
+		multiple64_128bit( mix_value_1, mix_value_2, multiplication_result_1 );
+		multiple64_128bit( mix_value_2, mix_value_0, multiplication_result_2 );
+
+		if constexpr ( OutputIs128Bit )
+		{
+			output.first = multiplication_result_0.first ^ multiplication_result_1.first ^ multiplication_result_2.second;
+			output.second = multiplication_result_0.second ^ multiplication_result_1.second ^ multiplication_result_2.first;
+		}
+		else
+		{
+			output.first = ( multiplication_result_0.first ^ multiplication_result_2.second )
+				+ ( multiplication_result_1.first ^ multiplication_result_0.second )
+				+ ( multiplication_result_2.first ^ multiplication_result_1.second );
+			output.second = 0;
 		}
 	}
 };

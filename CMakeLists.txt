@@ -16,13 +16,13 @@ target_include_directories(MuseAirHashTest PRIVATE ${CMAKE_SOURCE_DIR})
 # 根据编译模式设置编译选项
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     if(MSVC)
-        target_compile_options(MuseAirHashTest PRIVATE /W4 /RTC1 /Zi /Od)  # 启用运行时检查和调试符号
+        target_compile_options(MuseAirHashTest PRIVATE /W4 /utf-8 /RTC1 /Zi /Od)  # 启用运行时检查和调试符号
     else()
         target_compile_options(MuseAirHashTest PRIVATE -g -O0 -Wall -Wextra -Wpedantic)
     endif()
 elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
     if(MSVC)
-        target_compile_options(MuseAirHashTest PRIVATE /O3 /W4)  # 启用优化
+        target_compile_options(MuseAirHashTest PRIVATE /O3 /W4 /utf-8)  # 启用优化
     else()
         target_compile_options(MuseAirHashTest PRIVATE -O3 -Wall -Wextra -Wpedantic)
     endif()
